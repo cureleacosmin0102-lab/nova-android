@@ -44,12 +44,17 @@ jobs:
           }
           EOF
 
-      - name: Build Android App Bundle (.aab)
+      - name: Build Android App Bundle (.aab) and Debug APK (.apk)
         working-directory: android
-        run: ./gradlew bundleRelease --no-daemon
+        run: |
+          ./gradlew bundleRelease --no-daemon
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload AAB artifact
+      - name: Upload AAB and APK artifacts
         uses: actions/upload-artifact@v4
         with:
           name: nova-release-aab
-          path: android/app/build/outputs/bundle/release/app-release.aab
+          path: |
+            android/app/build/outputs/bundle/release/app-release.aab
+            android/app/build/outputs/apk/debug/app-debug.apk
+
