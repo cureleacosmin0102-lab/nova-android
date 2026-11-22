@@ -1,60 +1,431 @@
-name: Build Nova Android AAB
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nova — Asistent Local</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --card-2: #0b1220;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --accent-2: #22c55e;
+      --danger: #ef4444;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    header {
+      padding: 14px 16px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+    }
+    header h1 {
+      margin: 0;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 0.72rem;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(34, 197, 94, 0.15);
+      color: var(--accent-2);
+      border: 1px solid rgba(34, 197, 94, 0.35);
+    }
+    nav {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      background: var(--card-2);
+      border-bottom: 1px solid var(--border);
+    }
+    nav button {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      padding: 12px 8px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    nav button.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+    main {
+      flex: 1;
+      padding: 14px;
+      max-width: 820px;
+      width: 100%;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .tab-panel { display: none; flex-direction: column; gap: 12px; flex: 1; }
+    .tab-panel.active { display: flex; }
+    .chat-box {
+      flex: 1;
+      min-height: 320px;
+      max-height: 62vh;
+      overflow-y: auto;
+      background: var(--card-2);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg {
+      padding: 10px 12px;
+      border-radius: 10px;
+      max-width: 88%;
+      line-height: 1.45;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #0284c7;
+      color: #fff;
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: var(--card);
+      border: 1px solid var(--border);
+    }
+    .composer { display: flex; gap: 8px; }
+    input {
+      width: 100%;
+      background: var(--card-2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 0.95rem;
+    }
+    button.primary {
+      background: var(--accent);
+      color: #062033;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    button.danger {
+      background: rgba(239, 68, 68, 0.15);
+      color: #fca5a5;
+      border: 1px solid rgba(239, 68, 68, 0.4);
+      border-radius: 8px;
+      padding: 6px 10px;
+      cursor: pointer;
+    }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .card h3 { margin: 0; font-size: 1rem; }
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: var(--card-2);
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .hint { color: var(--muted); font-size: 0.85rem; margin: 0; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Nova <span class="badge">100% Local • Fără cheie</span></h1>
+    <span class="hint" id="statsHeader">0 obiective • 0 notițe</span>
+  </header>
 
-on:
-  workflow_dispatch:
+  <nav>
+    <button class="active" data-tab="chat">Chat</button>
+    <button data-tab="memory">Memorie</button>
+  </nav>
 
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+  <main>
+    <section id="tab-chat" class="tab-panel active">
+      <p class="hint">Comenzi locale: <strong>nota &lt;text&gt;</strong> · <strong>obiectiv &lt;text&gt;</strong> · <strong>autonom &lt;temă&gt;</strong> · <strong>status</strong> · calcule (ex. <code>60*60</code>)</p>
+      <div id="chatBox" class="chat-box"></div>
+      <form id="chatForm" class="composer">
+        <input id="chatInput" type="text" placeholder="Vorbește cu Nova local..." autocomplete="off" required />
+        <button class="primary" type="submit">Trimite</button>
+      </form>
+    </section>
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+    <section id="tab-memory" class="tab-panel">
+      <div class="card">
+        <h3>Obiective</h3>
+        <div class="composer">
+          <input id="goalInput" type="text" placeholder="Adaugă un obiectiv..." />
+          <button class="primary" id="addGoalBtn" type="button">Adaugă</button>
+        </div>
+        <div id="goalsList"></div>
+      </div>
 
-      - name: Setup Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: "temurin"
-          java-version: "21"
+      <div class="card">
+        <h3>Notițe</h3>
+        <div class="composer">
+          <input id="noteInput" type="text" placeholder="Adaugă o notiță..." />
+          <button class="primary" id="addNoteBtn" type="button">Adaugă</button>
+        </div>
+        <div id="notesList"></div>
+      </div>
+    </section>
+  </main>
 
-      - name: Initialize Capacitor Android project
-        run: |
-          npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          npx cap init "Nova" "com.nova.asistent" --web-dir www
-          npx cap add android
-          npx cap sync android
+  <script>
+    const STORAGE_KEY = "nova_local_zero_key_v1";
+    const defaultState = {
+      goals: [],
+      notes: [],
+      messages: [
+        { role: "assistant", text: "Salut! Sunt Nova în varianta 100% locală, fără chei API externe. Scrie-mi, adaugă obiective/notițe sau cere un plan cu: autonom <temă>." }
+      ]
+    };
 
-      - name: Force single Kotlin stdlib version
-        run: |
-          cat << 'EOF' >> android/build.gradle
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return structuredClone(defaultState);
+        return { ...structuredClone(defaultState), ...JSON.parse(raw) };
+      } catch {
+        return structuredClone(defaultState);
+      }
+    }
 
-          subprojects {
-            configurations.all {
-              resolutionStrategy {
-                force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
-                force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
-                force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
-              }
-            }
-          }
-          EOF
+    let state = loadState();
 
-      - name: Build Android App Bundle (.aab) and Debug APK (.apk)
-        working-directory: android
-        run: |
-          ./gradlew bundleRelease --no-daemon
-          ./gradlew assembleDebug --no-daemon
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      updateHeader();
+    }
 
-      - name: Upload AAB and APK artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: nova-release-aab
-          path: |
-            android/app/build/outputs/bundle/release/app-release.aab
-            android/app/build/outputs/apk/debug/app-debug.apk
+    function updateHeader() {
+      document.getElementById("statsHeader").textContent =
+        `${state.goals.length} obiective • ${state.notes.length} notițe`;
+    }
+
+    document.querySelectorAll("nav button").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll("nav button").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`tab-${btn.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    function appendMessage(role, text, save = true) {
+      if (save) {
+        state.messages.push({ role, text });
+        saveState();
+      }
+      const box = document.getElementById("chatBox");
+      const el = document.createElement("div");
+      el.className = `msg ${role === "user" ? "user" : "bot"}`;
+      el.textContent = text;
+      box.appendChild(el);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderChat() {
+      const box = document.getElementById("chatBox");
+      box.innerHTML = "";
+      state.messages.forEach((m) => appendMessage(m.role, m.text, false));
+    }
+
+    function renderLists() {
+      const goalsEl = document.getElementById("goalsList");
+      const notesEl = document.getElementById("notesList");
+      goalsEl.innerHTML = "";
+      notesEl.innerHTML = "";
+
+      state.goals.forEach((g, idx) => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        const span = document.createElement("span");
+        span.textContent = `${idx + 1}. ${g}`;
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Șterge";
+        del.addEventListener("click", () => {
+          state.goals.splice(idx, 1);
+          saveState();
+          renderLists();
+        });
+        row.append(span, del);
+        goalsEl.appendChild(row);
+      });
+
+      state.notes.forEach((n, idx) => {
+        const row = document.createElement("div");
+        row.className = "list-item";
+        const span = document.createElement("span");
+        span.textContent = `${idx + 1}. ${n}`;
+        const del = document.createElement("button");
+        del.className = "danger";
+        del.textContent = "Șterge";
+        del.addEventListener("click", () => {
+          state.notes.splice(idx, 1);
+          saveState();
+          renderLists();
+        });
+        row.append(span, del);
+        notesEl.appendChild(row);
+      });
+    }
+
+    function trySimpleMath(input) {
+      const expr = input
+        .toLowerCase()
+        .replace(/^calculeaza\s+/i, "")
+        .replace(/x/g, "*")
+        .trim();
+      if (!/^[0-9+\-*/().\s]+$/.test(expr) || !/[+\-*/]/.test(expr)) {
+        return null;
+      }
+      try {
+        const result = Function(`"use strict"; return (${expr});`)();
+        if (typeof result === "number" && Number.isFinite(result)) {
+          return `${result}`;
+        }
+      } catch {
+        return null;
+      }
+      return null;
+    }
+
+    function localNovaReply(raw) {
+      const trimmed = raw.trim();
+      const low = trimmed.toLowerCase();
+
+      if (/^nota\s+/i.test(trimmed)) {
+        const noteText = trimmed.replace(/^nota\s+/i, "").trim();
+        if (!noteText) return "Scrie textul notiței după: nota <text>";
+        state.notes.push(noteText);
+        saveState();
+        renderLists();
+        return `Am salvat notița #${state.notes.length}: "${noteText}".`;
+      }
+
+      if (/^obiectiv\s+/i.test(trimmed)) {
+        const goalText = trimmed.replace(/^obiectiv\s+/i, "").trim();
+        if (!goalText) return "Scrie obiectivul după: obiectiv <text>";
+        state.goals.push(goalText);
+        saveState();
+        renderLists();
+        return `Am adăugat obiectivul #${state.goals.length}: "${goalText}".`;
+      }
+
+      if (/^autonom\s+/i.test(trimmed)) {
+        const topic = trimmed.replace(/^autonom\s+/i, "").trim();
+        if (!topic) return "Spune-mi tema după: autonom <temă>";
+        return [
+          `Plan local pentru "${topic}":`,
+          `1. Definește clar rezultatul dorit pentru ${topic}.`,
+          `2. Împarte în 2–3 pași mici și testează primul pas astăzi.`,
+          `3. Notează ce a funcționat în tab-ul Memorie.`
+        ].join("\n");
+      }
+
+      if (low === "status") {
+        return `Mod 100% local activ. Obiective: ${state.goals.length} | Notițe: ${state.notes.length}.`;
+      }
+
+      const mathAns = trySimpleMath(trimmed);
+      if (mathAns !== null) {
+        return mathAns;
+      }
+
+      if (low.includes("cine este creatorul") || low.includes("cine te-a creat")) {
+        return "Tu ești creatorul meu.";
+      }
+
+      if (/^(salut|buna|bună|hei| salutare|neata|neața)\b/i.test(low)) {
+        return state.goals.length
+          ? `Salut! Avem ${state.goals.length} obiective active (primul: "${state.goals[0]}"). Cu ce începem azi?`
+          : "Salut! Sunt gata. Ce obiectiv sau notiță punem la punct azi?";
+      }
+
+      const words = low.split(/\s+/).filter((w) => w.length > 2);
+      const matchedNotes = state.notes.filter((n) => words.some((w) => n.toLowerCase().includes(w)));
+      const matchedGoals = state.goals.filter((g) => words.some((w) => g.toLowerCase().includes(w)));
+
+      if (matchedGoals.length || matchedNotes.length) {
+        const parts = ["Am găsit în memoria ta locală:"];
+        matchedGoals.forEach((g) => parts.push(`• Obiectiv: ${g}`));
+        matchedNotes.forEach((n) => parts.push(`• Notiță: ${n}`));
+        return parts.join("\n");
+      }
+
+      return "Rulez local fără API extern. Poți scrie un calcul (ex. 60*60), 'obiectiv ...', 'nota ...', 'autonom ...' sau 'status'.";
+    }
+
+    document.getElementById("chatForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const input = document.getElementById("chatInput");
+      const raw = input.value.trim();
+      if (!raw) return;
+      input.value = "";
+      appendMessage("user", raw);
+      const reply = localNovaReply(raw);
+      appendMessage("assistant", reply);
+    });
+
+    document.getElementById("addGoalBtn").addEventListener("click", () => {
+      const inp = document.getElementById("goalInput");
+      const val = inp.value.trim();
+      if (!val) return;
+      state.goals.push(val);
+      inp.value = "";
+      saveState();
+      renderLists();
+    });
+
+    document.getElementById("addNoteBtn").addEventListener("click", () => {
+      const inp = document.getElementById("noteInput");
+      const val = inp.value.trim();
+      if (!val) return;
+      state.notes.push(val);
+      inp.value = "";
+      saveState();
+      renderLists();
+    });
+
+    updateHeader();
+    renderChat();
+    renderLists();
+  </script>
+</body>
+</html>
 
