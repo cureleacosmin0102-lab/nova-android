@@ -13,7 +13,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -29,9 +29,24 @@ jobs:
           npx cap add android
           npx cap sync android
 
+      - name: Force single Kotlin stdlib version
+        run: |
+          cat << 'EOF' >> android/build.gradle
+
+          subprojects {
+            configurations.all {
+              resolutionStrategy {
+                force 'org.jetbrains.kotlin:kotlin-stdlib:1.8.22'
+                force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.8.22'
+                force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.8.22'
+              }
+            }
+          }
+          EOF
+
       - name: Build Android App Bundle (.aab)
         working-directory: android
-        run: ./gradlew bundleRelease
+        run: ./gradlew bundleRelease --no-daemon
 
       - name: Upload AAB artifact
         uses: actions/upload-artifact@v4
