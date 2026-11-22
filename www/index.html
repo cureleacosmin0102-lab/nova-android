@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Nova AI</title>
+  <style>
+    :root {
+      --bg: #0f1412;
+      --panel: #17201c;
+      --accent: #2ecc71;
+      --text: #eef5f0;
+      --muted: #9ab0a3;
+      --danger: #e74c3c;
+    }
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .app {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: var(--bg);
+    }
+    header {
+      padding: 14px 16px;
+      background: var(--panel);
+      border-bottom: 1px solid #223029;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 { margin: 0; font-size: 18px; }
+    header span { font-size: 12px; color: var(--accent); }
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      background: #121916;
+      border-bottom: 1px solid #223029;
+    }
+    .tab-btn {
+      padding: 10px;
+      background: none;
+      border: none;
+      color: var(--muted);
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom: 2px solid var(--accent);
+      font-weight: 600;
+    }
+    .view { display: none; flex: 1; flex-direction: column; overflow: hidden; }
+    .view.active { display: flex; }
+    .messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .msg {
+      max-width: 85%;
+      padding: 10px 12px;
+      border-radius: 12px;
+      line-height: 1.4;
+      font-size: 14px;
+      white-space: pre-wrap;
+    }
+    .msg.user {
+      align-self: flex-end;
+      background: #1f4d36;
+    }
+    .msg.bot {
+      align-self: flex-start;
+      background: var(--panel);
+      border: 1px solid #24332c;
+    }
+    .report-btn {
+      margin-top: 6px;
+      background: none;
+      border: 1px solid #35493f;
+      color: var(--muted);
+      border-radius: 6px;
+      padding: 3px 8px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .report-btn:hover { color: var(--danger); border-color: var(--danger); }
+    .composer {
+      display: flex;
+      gap: 8px;
+      padding: 10px 12px;
+      background: var(--panel);
+      border-top: 1px solid #223029;
+    }
+    input, select, button.primary {
+      border-radius: 10px;
+      border: 1px solid #2c3e35;
+      background: #0f1412;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 14px;
+    }
+    .composer input { flex: 1; }
+    button.primary {
+      background: var(--accent);
+      color: #09130d;
+      border: none;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .pad { padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+    .card {
+      background: var(--panel);
+      border: 1px solid #223029;
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .row { display: flex; gap: 8px; }
+    .row input { flex: 1; }
+    ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      background: #121916;
+      padding: 8px 10px;
+      border-radius: 8px;
+    }
+    .del-btn {
+      background: none;
+      border: 1px solid #3a2727;
+      color: #e57373;
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+    .small { font-size: 12px; color: var(--muted); }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Nova</h1>
+        <div class="small" id="statusBar">openrouter • openrouter/free</div>
+      </div>
+      <span id="keyBadge">Fără cheie</span>
+    </header>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="chat">Chat</button>
+      <button class="tab-btn" data-tab="memory">Memorie</button>
+      <button class="tab-btn" data-tab="settings">Setări</button>
+    </div>
+
+    <!-- TAB 1: CHAT -->
+    <section class="view active" id="view-chat">
+      <div class="messages" id="messages"></div>
+      <form class="composer" id="chatForm">
+        <input id="chatInput" type="text" placeholder="Mesaj, web ... sau autonom ..." autocomplete="off" />
+        <button class="primary" type="submit">Trimite</button>
+      </form>
+    </section>
+
+    <!-- TAB 2: MEMORIE -->
+    <section class="view" id="view-memory">
+      <div class="pad">
+        <div class="card">
+          <strong>Notițe</strong>
+          <div class="row">
+            <input id="noteInput" type="text" placeholder="Adaugă o notiță..." />
+            <button class="primary" id="addNoteBtn" type="button">Salvează</button>
+          </div>
+          <ul id="notesList"></ul>
+        </div>
+
+        <div class="card">
+          <strong>Obiective</strong>
+          <div class="row">
+            <input id="goalInput" type="text" placeholder="Adaugă un obiectiv..." />
+            <button class="primary" id="addGoalBtn" type="button">Salvează</button>
+          </div>
+          <ul id="goalsList"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: SETARI -->
+    <section class="view" id="view-settings">
+      <div class="pad">
+        <div class="card">
+          <label class="small">Furnizor</label>
+          <select id="providerSelect">
+            <option value="openrouter">openrouter</option>
+            <option value="groq">groq</option>
+          </select>
+
+          <label class="small">Model</label>
+          <input id="modelInput" type="text" value="openrouter/free" />
+
+          <label class="small">Cheie API (salvată local pe dispozitiv)</label>
+          <input id="apiKeyInput" type="password" placeholder="sk-..." />
+
+          <button class="primary" id="saveSettingsBtn" type="button">Salvează setările</button>
+          <div class="small" id="settingsMsg"></div>
+        </div>
+
+        <div class="card">
+          <strong>Confidențialitate & Google Play</strong>
+          <div class="small">
+            Notițele, obiectivele și setările stau local pe telefon. Mesajele sunt trimise doar către furnizorul API ales de tine și către sursele de căutare când folosești comanda web.
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = "nova_mobile_state_v3";
+
+    const defaultState = {
+      provider: "openrouter",
+      model: "openrouter/free",
+      apiKey: "",
+      rules: [
+        "Cel care vorbește cu tine în aplicație este creatorul tău. Tratează-l ca atare, cu respect, natural și ca un colaborator apropiat.",
+        "Răspunde scurt, natural și direct, fără introduceri lungi sau formule de robot."
+      ],
+      notes: [],
+      goals: [],
+      history: []
+    };
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return JSON.parse(JSON.stringify(defaultState));
+        return { ...JSON.parse(JSON.stringify(defaultState)), ...JSON.parse(raw) };
+      } catch {
+        return JSON.parse(JSON.stringify(defaultState));
+      }
+    }
+
+    let state = loadState();
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      renderHeader();
+      renderMemory();
+    }
+
+    function escapeHtml(str) {
+      return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+    }
+
+    function renderHeader() {
+      document.getElementById("statusBar").textContent = `${state.provider} • ${state.model}`;
+      const badge = document.getElementById("keyBadge");
+      if (state.apiKey) {
+        badge.textContent = "Cheie setată";
+        badge.style.color = "#2ecc71";
+      } else {
+        badge.textContent = "Fără cheie";
+        badge.style.color = "#f39c12";
+      }
+    }
+
+    function appendMessage(role, text) {
+      const box = document.getElementById("messages");
+      const div = document.createElement("div");
+      div.className = `msg ${role}`;
+      div.textContent = text;
+
+      if (role === "bot") {
+        const rep = document.createElement("button");
+        rep.className = "report-btn";
+        rep.type = "button";
+        rep.textContent = "Raportează";
+        rep.onclick = () => {
+          rep.textContent = "Raportat";
+          rep.disabled = true;
+        };
+        div.appendChild(document.createElement("br"));
+        div.appendChild(rep);
+      }
+
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function renderChat() {
+      const box = document.getElementById("messages");
+      box.innerHTML = "";
+      if (state.history.length === 0) {
+        appendMessage("bot", "Salut! Sunt Nova. Cu ce te pot ajuta astăzi?");
+        return;
+      }
+      for (const m of state.history) {
+        appendMessage(m.role === "user" ? "user" : "bot", m.content);
+      }
+    }
+
+    function renderMemory() {
+      const nList = document.getElementById("notesList");
+      const gList = document.getElementById("goalsList");
+
+      nList.innerHTML = state.notes.length
+        ? state.notes.map((n, i) => `
+            <li class="item-row">
+              <span>#${i + 1}: ${escapeHtml(n)}</span>
+              <button class="del-btn" type="button" onclick="deleteNote(${i})">Șterge</button>
+            </li>
+          `).join("")
+        : "<li class='small'>Nicio notiță încă.</li>";
+
+      gList.innerHTML = state.goals.length
+        ? state.goals.map((g, i) => `
+            <li class="item-row">
+              <span>#${i + 1}: ${escapeHtml(g)}</span>
+              <button class="del-btn" type="button" onclick="deleteGoal(${i})">Șterge</button>
+            </li>
+          `).join("")
+        : "<li class='small'>Niciun obiectiv încă.</li>";
+    }
+
+    function deleteNote(idx) {
+      state.notes.splice(idx, 1);
+      saveState();
+    }
+
+    function deleteGoal(idx) {
+      state.goals.splice(idx, 1);
+      saveState();
+    }
+
+    function renderSettings() {
+      document.getElementById("providerSelect").value = state.provider;
+      document.getElementById("modelInput").value = state.model;
+      document.getElementById("apiKeyInput").value = state.apiKey;
+    }
+
+    async function fetchWebInfo(query) {
+      const snippets = [];
+      try {
+        const ddgUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
+        const res = await fetch(ddgUrl);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.AbstractText) snippets.push(data.AbstractText);
+          if (Array.isArray(data.RelatedTopics)) {
+            for (const t of data.RelatedTopics.slice(0, 2)) {
+              if (t && t.Text) snippets.push("- " + t.Text);
+            }
+          }
+        }
+      } catch {}
+
+      if (!snippets.length) {
+        for (const lang of ["ro", "en"]) {
+          try {
+            const wikiUrl = `https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(query)}`;
+            const res = await fetch(wikiUrl);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.extract && data.type !== "disambiguation") {
+                snippets.push(`[Wiki ${lang.toUpperCase()}] ${data.extract}`);
+                break;
+              }
+            }
+          } catch {}
+        }
+      }
+      return snippets.join("\n").trim();
+    }
+
+    async function callProvider(userText, maxTokens = 280) {
+      if (!state.apiKey) {
+        return "Pune cheia API în tab-ul Setări ca să pot răspunde.";
+      }
+      const url = state.provider === "groq"
+        ? "https://api.groq.com/openai/v1/chat/completions"
+        : "https://openrouter.ai/api/v1/chat/completions";
+
+      const systemPrompt = [
+        "Ești Nova.",
+        "Utilizatorul este creatorul tău.",
+        "Vorbește în română, scurt, natural și direct, ca unui colaborator apropiat.",
+        "Fără introduceri lungi sau formule de robot.",
+        ...state.rules.map(r => `- ${r}`),
+        ...(state.goals.length ? ["Obiective:", ...state.goals.map(g => `- ${g}`)] : []),
+        ...(state.notes.length ? ["Notițe recente:", ...state.notes.slice(-4).map(n => `- ${n}`)] : [])
+      ].join("\n");
+
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...state.history.slice(-4),
+        { role: "user", content: userText }
+      ];
+
+      const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${state.apiKey}`
+      };
+      if (state.provider === "openrouter") {
+        headers["HTTP-Referer"] = "https://localhost";
+        headers["X-Title"] = "Nova";
+      }
+
+      const maxAttempts = state.model === "openrouter/free" ? 3 : 1;
+      let lastError = "Nu am primit răspuns.";
+
+      for (let attempt = 0; attempt < maxAttempts; attempt++) {
+        try {
+          const res = await fetch(url, {
+            method: "POST",
+            headers,
+            body: JSON.stringify({
+              model: state.model,
+              messages,
+              max_tokens: maxTokens,
+              temperature: 0.7
+            })
+          });
+          if (!res.ok) {
+            const errTxt = await res.text();
+            lastError = `Eroare (${res.status}): ${errTxt.slice(0, 140)}`;
+            break;
+          }
+          const data = await res.json();
+          const content = data?.choices?.[0]?.message?.content;
+          if (content && String(content).trim()) {
+            return String(content).trim();
+          }
+          lastError = `Răspuns gol pe ${state.model}.`;
+        } catch (err) {
+          lastError = `Conexiune: ${err.message}`;
+          break;
+        }
+      }
+      return lastError;
+    }
+
+    document.querySelectorAll(".tab-btn").forEach(btn => {
+      btn.onclick = () => {
+        document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+        document.querySelectorAll(".view").forEach(v => v.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`view-${btn.dataset.tab}`).classList.add("active");
+      };
+    });
+
+    document.getElementById("chatForm").onsubmit = async (e) => {
+      e.preventDefault();
+      const input = document.getElementById("chatInput");
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = "";
+
+      appendMessage("user", text);
+      state.history.push({ role: "user", content: text });
+
+      let promptToSend = text;
+      let maxTokens = 280;
+
+      if (text.toLowerCase().startsWith("web ")) {
+        const q = text.slice(4).trim();
+        const webInfo = await fetchWebInfo(q);
+        maxTokens = 380;
+        promptToSend = webInfo
+          ? `Întrebare: ${q}\nInfo web:\n${webInfo}\nRăspunde scurt și natural.`
+          : `Răspunde scurt și natural la întrebarea: ${q}`;
+      } else if (text.toLowerCase().startsWith("autonom ")) {
+        const topic = text.slice(8).trim();
+        promptToSend = `Tema: ${topic}. Dă 2 pași scurți + 1 frază notiță.`;
+      }
+
+      const reply = await callProvider(promptToSend, maxTokens);
+      appendMessage("bot", reply);
+      state.history.push({ role: "assistant", content: reply });
+      saveState();
+    };
+
+    document.getElementById("addNoteBtn").onclick = () => {
+      const inp = document.getElementById("noteInput");
+      if (!inp.value.trim()) return;
+      state.notes.push(inp.value.trim());
+      inp.value = "";
+      saveState();
+    };
+
+    document.getElementById("addGoalBtn").onclick = () => {
+      const inp = document.getElementById("goalInput");
+      if (!inp.value.trim()) return;
+      state.goals.push(inp.value.trim());
+      inp.value = "";
+      saveState();
+    };
+
+    document.getElementById("saveSettingsBtn").onclick = () => {
+      state.provider = document.getElementById("providerSelect").value;
+      state.model = document.getElementById("modelInput").value.trim() || "openrouter/free";
+      state.apiKey = document.getElementById("apiKeyInput").value.trim();
+      saveState();
+      document.getElementById("settingsMsg").textContent = "Setările au fost salvate local.";
+    };
+
+    renderHeader();
+    renderChat();
+    renderMemory();
+    renderSettings();
+  </script>
+</body>
+</html>
